@@ -8,18 +8,63 @@ using namespace std;
 enum ItemType
 {
 	none = 0,
-	wpn = 1,
-	cnsmb = 2,
-	qst = 3
+	weapon = 1,
+	consumable = 2,
+	quest = 3
 };
 
 enum WeaponType
 {
-	Primary,
-	Secondary,
-	Throwable,
-	None
+	primary = 0,
+	secondary = 1,
+	throwable = 2
 };
+
+#pragma region Database Utils
+
+template <class T>
+class AbstractDatabase {
+private:
+	vector<T*> _objects;
+public:
+	//check if item database is empty
+	bool empty() const {
+		return _objects.empty();
+	}
+
+	//return the total number of items in the database
+	unsigned int getSize(void) const
+	{
+		return _objects.size();
+	}
+
+	//return the object at the specified index
+	T* get(unsigned int index)
+	{
+		if (index < _objects.size()) {
+			return _objects.at(index);
+		}
+		else return NULL;
+	}
+
+	//add item to the database
+	void add(T* i) {
+		_objects.push_back(i);
+	}
+
+	//remove item from the database
+	bool remove(unsigned int index) {
+		if (index < _objects.size()) {
+			_objects.erase(_objects.begin() + index);
+			return true;
+		}
+		return false;
+	}
+};
+
+#pragma endregion
+
+#pragma region ItemSystem
 
 class Item
 {
@@ -80,44 +125,38 @@ public:
 private:
 };
 
-template <class T> 
-class AbstractDatabase {
+//ItemDatabase is a Singelton Class inheriting from the AbstractDatabase Class
+class ItemDatabase : public AbstractDatabase<Item> {
 private:
-	vector<T*> _objects;
+	static ItemDatabase *inst;
+	static void populate() {
+		//Weapons
+		inst->add(new Weapon(0, "sword", weapon, 2, 1, 300));
+		inst->add(new Weapon(1, "axe", weapon, 3, 1, 450));
+
+		//Consumables
+		inst->add(new Consumable(2, "apple", consumable, 1, 1, 15));
+		inst->add(new Consumable(3, "pair", consumable, 1, 1, 15));
+		inst->add(new Consumable(4, "carrot", consumable, 1, 1, 10));
+
+		//QuestObjects
+		inst->add(new QuestObject(5, "scarf", quest, 1, 1, 200));
+	}
 public:
-	//check if item database is empty
-	bool empty() const {
-		return _objects.empty();
-	}
-
-	//return the total number of items in the database
-	unsigned int getSize(void) const
-	{
-		return _objects.size();
-	}
-
-	T* get(unsigned int index)
-	{
-		if (index < _objects.size()) {
-			return _objects.at(index);
-		}
-		else return NULL;
-	}
-
-	//add item to the database
-	void add(T* i) {
-		_objects.push_back(i);
-	}
-
-	//remove item from the database
-	bool remove(unsigned int index) {
-		if (index < _objects.size()) {
-			_objects.erase(_objects.begin() + index);
-			return true;
-		}
-		return false;
-	}
+	static ItemDatabase *instance();
 };
+ItemDatabase *ItemDatabase::inst = 0;
+ItemDatabase *ItemDatabase::instance() {
+	if (!inst) {
+		inst = new ItemDatabase();
+		populate();
+	}
+	return inst;
+}
+
+#pragma endregion
+
+#pragma region InventorySystem
 
 //The container class for an inventory
 template<typename T, unsigned int capacity>
@@ -132,6 +171,7 @@ public:
 		if (capacity > _objects.size())
 		{
 			_objects.push_back(item);
+			onObjectAdded();
 			return true;
 		}
 		return false;
@@ -150,9 +190,11 @@ public:
 	unsigned int getWeight(void) const 
 	{
 		int w = 0;
-		for each (T* i in _objects)
-		{
-			w += i->getWeight();
+		if (_objects.size() > 0) {
+			for each (T* i in _objects)
+			{
+				w += i->getWeight();
+			}
 		}
 		return w;
 	}
@@ -171,6 +213,7 @@ public:
 		if (index < _objects.size())
 		{
 			_objects.erase(_objects.begin() + index);
+			onObjectRemoved();
 			return true;
 		}
 		return false;
@@ -183,39 +226,97 @@ public:
 
 private:
 	vector<T*> _objects;
+	virtual void onObjectAdded() = 0;
+	virtual void onObjectRemoved() = 0;
 };
 
-//ItemDatabase is a Singelton Class inheriting from the AbstractDatabase Class
-class ItemDatabase : public AbstractDatabase<Item> {
+//encapsulating the Container Class
+template<unsigned int cap>
+class Inventory : public Container<Item, cap> {
 private:
-	static ItemDatabase *inst;
-public:
-	static ItemDatabase *instance();
-};
-ItemDatabase *ItemDatabase::inst = 0;
-ItemDatabase *ItemDatabase::instance() {
-	if (!inst) {
-		inst = new ItemDatabase();
+	void onObjectAdded() {
+		cout << "\nAdded Object" << endl;
 	}
-	return inst;
-}
+	void onObjectRemoved() {
+		cout << "\nRemoved Object" << endl;
+	}
+};
+
+#pragma endregion
+
+#pragma region CharacterSystem
+
+//Private Class Data for all of the Character's variables
+class CharacterData {
+
+private:
+	string name;
+	string description;
+
+public:
+	CharacterData(string n, string d) {
+		name = n;
+		description = d;
+	}
+
+	string getName(void) {
+		return name;
+	}
+
+	string getDescription(void){
+		return description;
+	}
+};
+
+class Character {
+private:
+	CharacterData* data;
+	
+public:
+	Character(string n, string d) {
+		data = new CharacterData(n, d);
+	}
+	string getName() {
+		return data->getName();
+	}
+	string getDescription() {
+		return data->getDescription();
+	}
+	Inventory<30>* inventory = new Inventory<30>();
+};
+
+#pragma endregion
+
 
 int main() {
-	ItemDatabase::instance()->add(new Weapon(0, "sword", wpn, 10, 1, 300));
-	ItemDatabase::instance()->add(new Weapon(1, "axe", wpn, 10, 1, 300));
-	ItemDatabase::instance()->add(new Consumable(2, "fruit", cnsmb, 10, 1, 300));
+	cout << "New Game" << endl;
+	
+	Character* c = new Character("johny", "apple seed collector");
+	
+	cout << "New Character: " << c->getName() << endl;
+	cout << "Starting Journey..." << endl;
 
-	cout << ItemDatabase::instance()->get(0)->getName() << endl;
-	cout << ItemDatabase::instance()->get(2)->getName() << endl;
+	cout << "Walking across the desert..." << endl;
 
-	//create an Inventory with a capacity of 30 items
-	//TODO: Change capacity to be based on weight, not on total number of items
-	Container<Item, 30> inventory;
-	inventory.add(ItemDatabase::instance()->get(0));
-	inventory.add(ItemDatabase::instance()->get(1));
-	inventory.add(ItemDatabase::instance()->get(2));
-	cout << inventory.get(0)->getName() << " " << inventory.getWeight();
+	c->inventory->add(ItemDatabase::instance()->get(0));
+	
+	cout << "Item Collected: " << c->inventory->get(c->inventory->getSize() - 1)->getName() << endl;
+	cout << "New Weight: " << c->inventory->getWeight() << "/" << c->inventory->getCapacity() << endl;
+	cout << "Onward!" << endl;
+	
+	c->inventory->add(ItemDatabase::instance()->get(1));
 
-	getchar();
+	cout << "Finally made it out of the desert, made it to the forest" << endl;
+
+	cout << "Item Collected: " << c->inventory->get(c->inventory->getSize() - 1)->getName() << endl;
+	cout << "New Weight: " << c->inventory->getWeight() << "/" << c->inventory->getCapacity() << endl;
+	cout << "Onward!" << endl;
+
+	c->inventory->add(ItemDatabase::instance()->get(2));
+
+	cout << "Item Collected: " << c->inventory->get(c->inventory->getSize() - 1)->getName() << endl;
+	cout << "New Weight: " << c->inventory->getWeight() << "/" << c->inventory->getCapacity() << endl;
+	cout << "Onward!" << endl;
+
+	cout << "killed... Game Over" << endl;
 }
-
