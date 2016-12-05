@@ -722,7 +722,6 @@ private:
 		cout << "Removed Object" << endl;
 	}
 };
-
 #pragma endregion
 
 #pragma region CharacterSystem
@@ -755,18 +754,56 @@ public:
 	Character(string n, string d) {
 		data = new CharacterData(n, d);
 	}
+
+	//Factory Method
+	static Character *make_character(int choice);
+
 	string getName() {
 		return data->getName();
 	}
 	string getDescription() {
 		return data->getDescription();
 	}
-
 	Inventory<MAX_INVENTORY_CAP>* inventory = new Inventory<MAX_INVENTORY_CAP>();
 };
 
+#pragma region CharacterTypes
+
+class Wizzard : public Character {
+public:
+	Wizzard(string n, string d) : Character(n, d) {}
+};
+
+class Warrior : public Character {
+public:
+	Warrior(string n, string d) : Character(n, d) {}
+};
+
+class Medic : public Character {
+public:
+	Medic(string n, string d) : Character(n, d) {}
+};
+
 #pragma endregion
-/*
+
+//Factory Method for Creating a Character
+Character *Character::make_character(int choice)
+{
+	switch (choice)
+	{
+	case 1:
+		return new Warrior("Warrior", "A character that's extremly skillfull in battle");
+	case 2:
+		return new Wizzard("wizzard", "A special character that uses magic");
+	case 3:
+		return new Medic("Medic", "A character that has an increased health stat");
+	default:
+		return new Warrior("Warrior", "A character that's extremly skillfull in battle");
+	}
+}
+
+#pragma endregion
+
 #pragma region STAT SYSTEM
 
 class Stat {
@@ -811,6 +848,7 @@ public:
 	};
 };
 
+/*
 class StatCollection {
 private:
 	map<StatType, Stat>* _statDictionary; //= new map<StatType, Stat*>();
@@ -838,15 +876,15 @@ public:
 		return getStat(type)
 	}
 };
-
-#pragma endregion
 */
+#pragma endregion
+
 //Examples of basic system mechanics that would be in place if there was a UI
 int main() {
 	cout << "New Game\n" << endl;
 	
 	//creating a new character 
-	Character* c = new Character("johny", "apple seed collector");
+	Character* c = Character::make_character(0);
 	
 	cout << "New Character: " << c->getName() << endl;
 	cout << "Starting Journey...\n" << endl;
