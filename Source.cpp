@@ -761,9 +761,19 @@ public:
 	string getName() {
 		return data->getName();
 	}
+
 	string getDescription() {
 		return data->getDescription();
 	}
+
+	void pickUpItem(Item* i) {
+		inventory->add(i);
+	}
+
+	void printInventory() {
+		inventory->print();
+	}
+
 	Inventory<MAX_INVENTORY_CAP>* inventory = new Inventory<MAX_INVENTORY_CAP>();
 };
 
@@ -848,35 +858,80 @@ public:
 	};
 };
 
-/*
 class StatCollection {
-private:
-	map<StatType, Stat>* _statDictionary; //= new map<StatType, Stat*>();
 protected:
-	virtual void ConfigureStats() = 0;
+	map<StatType, Stat*>* _statDictionary;
+	virtual void configureStats() = 0;
+	
+	template <typename T>
+	T* createStat(StatType statType) {
+		T* stat = new T();
+		_statDictionary->at(statType) = (T*)stat;
+		return stat;
+	}
+
+	template <typename T>
+	T* createOrGetStat(StatType statType) {
+		T* stat = getStat<T>(statType);
+		if (stat == NULL) {
+			stat = createStat<T>(statType);
+		}
+		return stat;
+	}
 
 public:
 	StatCollection() {
-		_statDictionary = new map<StatType, Stat>();
+		_statDictionary = new map<StatType, Stat*>();
+		configureStats();
 	}
-	map<StatType, Stat>* getStatDict() {
-		if (_statDictionary->empty()) {
-			_statDictionary = new map<StatType, Stat>();
-			ConfigureStats();
+
+	map<StatType, Stat*>* statDictionary() {
+		if (_statDictionary==NULL) {
+			_statDictionary = new map<StatType, Stat*>();
 		}
 		return _statDictionary;
 	}
 
 	bool ContainsStat(StatType statType) {
-		return getStatDict()->count(statType);
+		if (_statDictionary->count(statType) > 0)
+			return true;
+		else
+			return false;
 	}
 
-	template <typename T>
-	T getStat<T>(StatType type){
-		return getStat(type)
+	Stat* getStat(StatType statType) {
+		if (ContainsStat(statType)) {
+			return _statDictionary->at(statType);
+		}
+		return NULL;
+	}
+	
+	template <class T>
+	T* getStat(StatType type) {
+		return (T*)getStat(type);
 	}
 };
-*/
+
+class BaseStatCollection : public StatCollection {
+protected:
+	void configureStats() {
+#pragma region Attributes
+		Stat* stamina = createOrGetStat<Stat>(Stamina);
+		stamina->setStatName("Stamina");
+		stamina->setStatBaseValue(0);
+
+		Stat* strength = createOrGetStat<Stat>(Strength);
+		strength->setStatName("Strength");
+		strength->setStatBaseValue(5);
+#pragma endregion
+
+#pragma region Stats
+		Stat* health = createOrGetStat<Stat>(Health);
+		health->setStatName("Health");
+		health->setStatBaseValue(100);
+#pragma endregion		
+	}
+};
 #pragma endregion
 
 //Examples of basic system mechanics that would be in place if there was a UI
@@ -892,7 +947,7 @@ int main() {
 	cout << "Walking across the desert...\n" << endl;
 	
 	//adding item from the available database into the character's inventory
-	c->inventory->add(ItemDatabase::instance()->get("sword"));
+	c->pickUpItem(ItemDatabase::instance()->get("sword"));
 	
 	cout << "Item Collected: " << c->inventory->get(c->inventory->getSize() - 1)->getName() << endl;
 	cout << "New Weight: " << c->inventory->getWeight() << "/" << c->inventory->getCapacity() << endl;
@@ -901,34 +956,34 @@ int main() {
 	cout << "Finally made it out of the desert!\n\nEntering the forest\n" << endl;
 
 	//adding item from the available database into the character's inventory
-	c->inventory->add(ItemDatabase::instance()->get("axe"));
+	c->pickUpItem(ItemDatabase::instance()->get("axe"));
 
 	cout << "Item Collected: " << c->inventory->get(c->inventory->getSize() - 1)->getName() << endl;
 	cout << "New Weight: " << c->inventory->getWeight() << "/" << c->inventory->getCapacity() << endl;
 	cout << "Onward!\n" << endl;
 
 	//adding item from the available database into the character's inventory
-	c->inventory->add(ItemDatabase::instance()->get("potion"));
+	c->pickUpItem(ItemDatabase::instance()->get("potion"));
 
 	cout << "Item Collected: " << c->inventory->get(c->inventory->getSize() - 1)->getName() << endl;
 	cout << "New Weight: " << c->inventory->getWeight() << "/" << c->inventory->getCapacity() << endl;
 	cout << "Onward!" << endl;
 
-	c->inventory->print();
+	c->printInventory();
 
 	//Upgrading an Item using the Decorator Design Pattern
 	c->inventory->upgradeItem(0, common);
 
 	cout << "UPGRADED SUCCESSFULLY- ISUPGRADED:" << boolalpha << c->inventory->get(0)->isUpgraded() << endl;
 
-	c->inventory->print();
+	c->printInventory();
 
 	//Downgrading an Item by removing the Decoration
 	c->inventory->downgradeItem(0);
 
 	cout << "DOWNGRADED SUCCESSFULLY- ISUPGRADED:" << boolalpha << c->inventory->get(0)->isUpgraded() << endl;
 
-	c->inventory->print();
+	c->printInventory();
 
 	cout << "OVERRIDING AN UPGRADE WITH A BETTER QUALITY ONE----------------" << endl;
 
@@ -937,13 +992,12 @@ int main() {
 
 	cout << "UPGRADED SUCCESSFULLY- ISUPGRADED:" << boolalpha << c->inventory->get(0)->isUpgraded() << endl;
 
-
 	if (c->inventory->get(0)->isUpgraded()) {
 		//The weapon that was upgraded added more points to it's durability
 		cout << "UPGRADED DURABILITY: " << ((WeaponUpgrade*)c->inventory->get(0))->getDurability();
 	}
 
-	c->inventory->print();
+	c->printInventory();
 
 	//re-upgrading the same weapon with a better upgrade quality which overrides the last upgrade by deleting the previous decorator and adding a new one
 	c->inventory->upgradeItem(0, amazing);
@@ -955,7 +1009,7 @@ int main() {
 		cout << "UPGRADED DURABILITY: " << ((WeaponUpgrade*)c->inventory->get(0))->getDurability();
 	}
 
-	c->inventory->print();
+	c->printInventory();
 
 	//end of example use cases
 	cout << "killed... Game Over" << endl;
